@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 修改页面标题 -->
+    <title>温太医能不能干了</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 10px; /* 减少页面内边距 */
+            display: grid;
+            /* 减少列数，让布局更紧凑 */
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 10px; /* 减少元素间距 */
+            max-width: 1000px; /* 适当减小最大宽度 */
+            margin: 0 auto;
+            /* 定义行高 */
+            grid-auto-rows: minmax(min-content, max-content);
+        }
+
+        h1 {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-top: 0; /* 减少标题顶部外边距 */
+        }
+
+        button {
+            margin: 3px; /* 减少按钮外边距 */
+            padding: 8px 15px; /* 减少按钮内边距 */
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 14px; /* 减小按钮文字大小 */
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #medicalRecord, #rules {
+            margin-top: 10px; /* 减少顶部外边距 */
+            border: 1px solid #ccc;
+            padding: 10px; /* 减少内边距 */
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            grid-column: 1 / -1;
+        }
+
+        #treatmentMethods {
+            grid-column: 1 / -1;
+            display: grid;
+            /* 每行显示 5 个按钮 */
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px; /* 减少按钮间距 */
+        }
+
+        #treatmentMethods button {
+            min-width: 100px; /* 减小按钮最小宽度 */
+        }
+
+        /* 调整元素的网格位置 */
+        label, input, img, p {
+            align-self: center;
+            font-size: 14px; /* 减小文字大小 */
+        }
+
+        .box {
+            border: 1px solid #ccc;
+            padding: 10px; /* 减少框内边距 */
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            margin-bottom: 10px; /* 减少框底部外边距 */
+        }
+
+        .box h2 {
+            margin-top: 0;
+            font-size: 18px; /* 减小小标题文字大小 */
+        }
+
+        img {
+            max-width: 200px; /* 减小图片最大宽度 */
+        }
+    </style>
+</head>
+<body>
+    <!-- 修改页面主标题 -->
+    <h1>温太医能不能干了</h1>
+    <p id="score">分数：0</p>
+    <!-- 音乐播放框 -->
+    <div class="box">
+        <h2>音乐播放</h2>
+        <button onclick="playMusic()">播放</button>
+        <button onclick="pauseMusic()">暂停</button>
+        <button onclick="prevMusic()">上一首</button>
+        <button onclick="nextMusic()">下一首</button>
+        <input type="range" id="volume" min="0" max="1" step="0.1" value="1" onchange="changeVolume(this.value)">
+    </div>
+    <!-- 照片框 -->
+    <div class="box">
+        <h2>在坐各位靓照</h2>
+        <label>我</label>
+        <input type="file" id="uploadPhoto" accept="image/*" onchange="loadUserPhoto(this)">
+        <img id="userImage" src="patient_images/温太医.jpg" alt="您的照片" style="max-width: 300px;">
+        <p id="patientSymptom">当前病人症状：</p>
+        <label>病人</label>
+        <img id="patientImage" src="" alt="病人照片" style="max-width: 300px; display: none;">
+    </div>
+    <!-- 治疗方法框 -->
+    <div class="box">
+        <h2>治疗方法</h2>
+        <div id="treatmentMethods"></div>
+        <p id="selectionCount">当前本人剩余治疗次数（治不好就gg咯）：5</p>
+    </div>
+    <p id="result"></p>
+    <p id="patientCount">剩余病人数量：50</p>
+    <button onclick="showRules()">查看规则</button>
+    <button onclick="showMedicalRecord()">查看医疗记录</button>
+    <div id="medicalRecord"></div>
+    <div id="rules">
+        <h3>游戏规则</h3>
+        <p>治好的病人越多分数越高，治死的病人越多分数越低。</p>
+        <p>每个遇到的病人都会随机出现 10 种随机治疗方法和当前症状，需要选择合适的治疗方法才可以治好。</p>
+        <p>每个病人可以选择 5 种治疗方法，只要 2 种正确则视为治好，不然视为病人死亡。</p>
+        <p>每一种疾病的治疗方法是固定的。</p>
+        <p>有一个医疗记录，会记录最近 15 个病人的救治情况。</p>
+        <p>每次游戏会有 50 个病人，治疗完毕后将根据治疗情况进行评价。</p>
+    </div>
+
+    <script>
+        let score = 0;
+        let correctSelections = 0;
+        let selectionCount = 5;
+        let treatmentMethods = [];
+        let correctMethods = [];
+        let patientCount = 50;
+        let medicalRecord = [];
+
+        // 定义病症和对应的正确治疗方法
+        const symptomMethodsMap = {
+            "头痛": ["开药", "按摩"],
+            "咳嗽": ["开药", "输液"],
+            "发烧": ["开药", "物理治疗"],
+            "胃痛": ["开药", "饮食调整"],
+            "背痛": ["按摩", "针灸"],
+            "呼吸困难": ["输液", "手术"],
+            "眩晕": ["休息", "心理辅导"],
+            "过敏": ["开药", "休息"],
+            "失眠": ["心理辅导", "康复训练"],
+            "疲劳": ["休息", "饮食调整"]
+        };
+
+        // 定义音乐列表
+        // 修改音乐列表，添加 music 文件夹路径
+        // 动态生成音乐列表的函数
+        function getMusicList() {
+            return [
+                'music/music1.mp3',
+                'music/music2.mp3',
+                'music/music3.mp3',
+                'music/music4.mp3'
+            ];
+        }
+        
+        // 使用动态生成的音乐列表
+        const musicList = getMusicList();
+        let currentMusicIndex = Math.floor(Math.random() * musicList.length);
+        const audio = new Audio(musicList[currentMusicIndex]);
+
+        function playMusic() {
+            audio.play();
+        }
+
+        function pauseMusic() {
+            audio.pause();
+        }
+
+        function prevMusic() {
+            currentMusicIndex = (currentMusicIndex - 1 + musicList.length) % musicList.length;
+            audio.src = musicList[currentMusicIndex];
+            audio.play();
+        }
+
+        function nextMusic() {
+            currentMusicIndex = (currentMusicIndex + 1) % musicList.length;
+            audio.src = musicList[currentMusicIndex];
+            audio.play();
+        }
+
+        function changeVolume(volume) {
+            audio.volume = volume;
+        }
+
+        function startNewPatient() {
+            if (patientCount === 0) {
+                endGame();
+                return;
+            }
+            correctSelections = 0;
+            selectionCount = 5;
+            patientCount--;
+            // 修改此处文字
+            document.getElementById('selectionCount').textContent = `当前本人剩余治疗次数（治不好就gg咯）：${selectionCount}`;
+            document.getElementById('patientCount').textContent = `剩余病人数量：${patientCount}`;
+            document.getElementById('result').textContent = '';
+
+            // 生成随机症状
+            const symptoms = Object.keys(symptomMethodsMap);
+            const randomSymptom = symptoms[Math.floor(Math.random() * symptoms.length)];
+            document.getElementById('patientSymptom').textContent = `当前病人症状：${randomSymptom}`;
+
+            // 加载病人照片
+            const imageElement = document.getElementById('patientImage');
+            // 修改为加载 .jpg 格式图片
+            imageElement.src = `patient_images/${randomSymptom}.jpg`;
+            imageElement.style.display = 'block';
+
+            // 添加错误处理
+            imageElement.onerror = function() {
+                document.getElementById('result').textContent = `未能加载 ${randomSymptom} 的病人照片，请检查图片路径和文件名。`;
+            };
+
+            // 获取该症状对应的正确治疗方法
+            correctMethods = symptomMethodsMap[randomSymptom];
+
+            // 生成 10 种随机治疗方法，包含正确方法
+            const allMethods = [
+                "开药", "输液", "按摩", "针灸", "休息",
+                "物理治疗", "手术", "饮食调整", "心理辅导", "康复训练"
+            ];
+            treatmentMethods = [...correctMethods];
+            while (treatmentMethods.length < 10) {
+                const randomIndex = Math.floor(Math.random() * allMethods.length);
+                const method = allMethods[randomIndex];
+                if (!treatmentMethods.includes(method)) {
+                    treatmentMethods.push(method);
+                }
+            }
+
+            // 打乱治疗方法顺序
+            treatmentMethods.sort(() => Math.random() - 0.5);
+
+            // 显示治疗方法按钮
+            const treatmentDiv = document.getElementById('treatmentMethods');
+            treatmentDiv.innerHTML = '';
+            treatmentMethods.forEach(method => {
+                const button = document.createElement('button');
+                button.textContent = method;
+                button.addEventListener('click', () => selectTreatment(method));
+                treatmentDiv.appendChild(button);
+            });
+        }
+
+        function selectTreatment(method) {
+            if (selectionCount > 0) {
+                selectionCount--;
+                // 修改此处文字
+                document.getElementById('selectionCount').textContent = `当前本人剩余治疗次数（治不好就gg咯）：${selectionCount}`;
+
+                if (correctMethods.includes(method)) {
+                    correctSelections++;
+                }
+
+                if (selectionCount === 0) {
+                    const isSuccess = correctSelections >= 2;
+                    if (isSuccess) {
+                        score += 1;
+                        document.getElementById('result').textContent = `病人已治好！`;
+                    } else {
+                        score -= 1;
+                        document.getElementById('result').textContent = "病人死亡！";
+                    }
+                    document.getElementById('score').textContent = `分数：${score}`;
+
+                    // 记录医疗记录
+                    const record = {
+                        symptom: document.getElementById('patientSymptom').textContent.replace('当前病人症状：', ''),
+                        methods: treatmentMethods,
+                        success: isSuccess
+                    };
+                    medicalRecord.unshift(record);
+                    if (medicalRecord.length > 15) {
+                        medicalRecord.pop();
+                    }
+
+                    setTimeout(startNewPatient, 2000);
+                }
+            }
+        }
+
+        function showMedicalRecord() {
+            const recordDiv = document.getElementById('medicalRecord');
+            recordDiv.innerHTML = '<h3>医疗记录</h3>';
+            medicalRecord.forEach((record, index) => {
+                recordDiv.innerHTML += `
+                    <p>病人 ${index + 1}: 
+                        病症 - ${record.symptom}, 
+                        治疗方法 - ${record.methods.join(', ')}, 
+                        结果 - ${record.success ? '成功' : '失败'}
+                    </p>
+                `;
+            });
+            recordDiv.style.display = 'block';
+            document.getElementById('rules').style.display = 'none';
+        }
+
+        function showRules() {
+            document.getElementById('rules').style.display = 'block';
+            document.getElementById('medicalRecord').style.display = 'none';
+        }
+
+        function endGame() {
+            const successCount = medicalRecord.filter(record => record.success).length;
+            let evaluation = '';
+            if (successCount < 10) {
+                evaluation = '庸医';
+            } else if (successCount <= 20) {
+                evaluation = '资质平平';
+            } else if (successCount <= 25) {
+                evaluation = '合格医生';
+            } else if (successCount <= 35) {
+                evaluation = '医生组长';
+            } else if (successCount <= 40) {
+                evaluation = '专科医生';
+            } else if (successCount <= 45) {
+                evaluation = '天降神医';
+            } else {
+                evaluation = '华佗在世';
+            }
+            document.getElementById('result').textContent = `游戏结束！您成功治疗了 ${successCount} 位病人，评价：${evaluation}`;
+            document.getElementById('treatmentMethods').innerHTML = '';
+        }
+
+        // 开始第一个病人
+        startNewPatient();
+
+        function loadUserPhoto(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('userImage').src = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    </script>
+</body>
+</html>
